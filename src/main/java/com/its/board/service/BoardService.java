@@ -3,7 +3,9 @@ package com.its.board.service;
 import com.its.board.common.PagingConst;
 import com.its.board.dto.BoardDTO;
 import com.its.board.entity.BoardEntity;
+import com.its.board.entity.MemberEntity;
 import com.its.board.repository.BoardRepository;
+import com.its.board.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +25,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class BoardService {
     private final BoardRepository boardRepository;
+    private final MemberRepository memberRepository;
     public Long save(BoardDTO boardDTO)  throws IOException {
         MultipartFile boardFile = boardDTO.getBoardFile();
         String boardFileName = boardFile.getOriginalFilename();
@@ -33,10 +36,19 @@ public class BoardService {
         }
         boardDTO.setBoardFileName(boardFileName);
 
-
-        Long saveId= boardRepository.save(BoardEntity.tosaveEntity(boardDTO)).getId();
+        // toSaveEntity 메서드에 회원 엔티티를 같이 전달 해야함.
+        Optional<MemberEntity> optionalMemberEntity =
+        memberRepository. findByMemberEmail(boardDTO.getBoardWriter());
+        if(optionalMemberEntity.isPresent()) {
+            MemberEntity memberEntity = optionalMemberEntity.get();
+            Long saveId = boardRepository.save(BoardEntity.tosaveEntity(boardDTO)).getId();
+            return saveId;
+        }else{
+            return null;
+        }
         return saveId; // 글작성 까지 완성
     }
+    @Transactional
     public List<BoardDTO> findAll() {
         List<BoardEntity> boardEntityList = boardRepository.findAll();
         List<BoardDTO> boardDTOList = new ArrayList<>();
@@ -85,6 +97,18 @@ public class BoardService {
                         board.getCreatedTime()
                 ));
         return boardList;
+    }
+
+    public List<BoardDTO> search(String q) {
+        List<BoardEntity> boardEntityList= boardRepository.findByBoardTitleContaining(q);
+        List<BoardDTO> boardDTOList = new ArrayList<>();
+        for(BoardEntity boardEntity: boardEntityList){
+            BoardDTO.toBoardDTO(boardEntity);
+            boardDTOList.add(BoardDTO.toBoardDTO(boardEntity));
+        }
+        // return boardDTOList;
+        return boarDTOList;
+
     }
 }
 
